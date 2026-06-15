@@ -1,5 +1,5 @@
 # Aqui está tudo sobre meu primeiro site
-*Olá, aqui eu explicarei e resumirei tudo o que há do meu site, incluindo informações pessoais minhas e receitas*
+*Olá, aqui eu explicarei e resumirei tudo o que há do meu site, incluindo informações pessoais minhas e minhas receitas favoritas.*
 
 ## INDEX
 **Esta é a pagina principal (index.html) que é o centro onde você vai emcontrar o acesso as paginas: sobre_mim.html e Receitas.**
