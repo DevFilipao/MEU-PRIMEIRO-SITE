@@ -11,3 +11,10 @@
 **Nessa pagina eu coloquei algumas das minhas receitas prediletas, com modo de preparo e os ingredientes.**
 
 ## Contato
+**Nessa página, você pode se comunicar comigo, informando seu nome e seu e-mail.**
+
+## Hobbies
+**Nessa página, você vai analisar meus hobbies do dia a dia, interesses, o que gosto de fazer, incluindo músicas, esportes, estudos e etc.**
+
+## Cadastro
+**Esta é uma página de cadastro, para poder fazer algum comentário, e eu saber com quem estou falando e seus interesses. Você deve informar seu nome completo, data de nascimento, email, cidade, número e uma mensagem adicional.**
