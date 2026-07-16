@@ -18,3 +18,4 @@
 
 ## Cadastro
 **Esta é uma página de cadastro, para poder fazer algum comentário, e eu saber com quem estou falando e seus interesses. Você deve informar seu nome completo, data de nascimento, email, cidade, número e uma mensagem adicional.**
+
