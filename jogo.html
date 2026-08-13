@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Super Aventura - Jogo de Plataforma</title>
+<link rel="stylesheet" href="style.css">
+
+<nav class="menu">
+    <a href="index.html">Início</a>
+    <a href="sobre_mim.html">Sobre Mim</a>
+    <a href="receitas.html">Receitas</a>
+    <a href="hobbies.html">Hobbies</a>
+    <a href="contato.html">Contato</a>
+    <a href="cadastro.html">Cadastro</a>
+    <a href="jogo.html">Jogo</a>
+</nav>
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: linear-gradient(#5c94fc, #a0d8ef);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+  }
+  #gameContainer {
+    position: relative;
+    border: 4px solid #222;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  }
+  canvas {
+    display: block;
+    background: linear-gradient(#5c94fc, #a0d8ef);
+  }
+  #hud {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 2px 2px 0 #000;
+    z-index: 10;
+    pointer-events: none;
+  }
+  #message {
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    text-shadow: 3px 3px 0 #000;
+    text-align: center;
+    display: none;
+    z-index: 20;
+  }
+  #message button {
+    display: block;
+    margin: 15px auto 0;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    cursor: pointer;
+    background: #ffcc00;
+    border: 3px solid #222;
+    border-radius: 6px;
+  }
+  #instructions {
+    color: #222;
+    margin-top: 10px;
+    font-size: 14px;
+    text-align: center;
+  }
+  #instructions b { color: #003366; }
+</style>
+</head>
+<body>
+ 
+<div id="gameContainer">
+  <div id="hud">Vidas: <span id="lives">3</span> &nbsp;|&nbsp; Moedas: <span id="coins">0</span> &nbsp;|&nbsp; Fase: <span id="level">1</span></div>
+  <div id="message">
+    <div id="messageText"></div>
+    <button id="messageBtn" onclick="handleMessageClick()">Continuar</button>
+  </div>
+  <canvas id="game" width="800" height="450"></canvas>
+</div>
+<div id="instructions">
+  Setas ou <b>A/D</b> para mover, <b>ESPAÇO</b> ou <b>W</b> para pular. Pise nos inimigos para derrotá-los!
+</div>
+ 
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const GRAVITY = 0.6;
+const groundY = 400;
+ 
+let keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+document.addEventListener('keyup', e => keys[e.code] = false);
+ 
+// ---------- Definição das fases ----------
+// Cada bloco: x, y, w, h
+// Moedas: x, y
+// Inimigos: x, y, range (patrulha), speed
+// Objetivo: bandeira no final
+ 
+function buildLevel(levelNum) {
+  const levelWidth = 2400;
+  let platforms = [
+    {x:0, y:groundY, w:levelWidth, h:50} // chão
+  ];
+  let coins = [];
+  let enemies = [];
+  let flagX = levelWidth - 100;
+ 
+  if (levelNum === 1) {
+    platforms.push({x:300, y:320, w:100, h:20});
+    platforms.push({x:500, y:260, w:100, h:20});
+    platforms.push({x:700, y:320, w:150, h:20});
+    platforms.push({x:1000, y:350, w:120, h:20});
+    platforms.push({x:1250, y:280, w:100, h:20});
+    platforms.push({x:1500, y:340, w:200, h:20});
+    platforms.push({x:1850, y:280, w:120, h:20});
+ 
+    coins = [
+      {x:330,y:280},{x:530,y:220},{x:740,y:280},
+      {x:1030,y:310},{x:1280,y:240},{x:1560,y:300},
+      {x:1880,y:240},{x:1900,y:240}
+    ];
+ 
+    enemies = [
+      {x:650, y:groundY-30, range:120, startX:650, speed:1.5},
+      {x:1100, y:groundY-30, range:150, startX:1100, speed:2},
+      {x:1700, y:groundY-30, range:150, startX:1700, speed:1.8}
+    ];
+  } else {
+    // Fase 2 - um pouco mais difícil
+    platforms.push({x:250, y:330, w:80, h:20});
+    platforms.push({x:420, y:270, w:80, h:20});
+    platforms.push({x:600, y:210, w:80, h:20});
+    platforms.push({x:800, y:300, w:150, h:20});
+    platforms.push({x:1050, y:350, w:90, h:20});
+    platforms.push({x:1200, y:260, w:90, h:20});
+    platforms.push({x:1400, y:320, w:200, h:20});
+    platforms.push({x:1700, y:250, w:100, h:20});
+    platforms.push({x:1950, y:320, w:150, h:20});
+ 
+    coins = [
+      {x:270,y:290},{x:440,y:230},{x:620,y:170},
+      {x:830,y:260},{x:1070,y:310},{x:1220,y:220},
+      {x:1450,y:280},{x:1720,y:210},{x:1980,y:280},{x:2010,y:280}
+    ];
+ 
+    enemies = [
+      {x:500, y:groundY-30, range:100, startX:500, speed:2},
+      {x:900, y:groundY-30, range:180, startX:900, speed:2.2},
+      {x:1300, y:groundY-30, range:150, startX:1300, speed:2},
+      {x:1600, y:groundY-30, range:150, startX:1600, speed:2.5},
+      {x:2000, y:groundY-30, range:120, startX:2000, speed:2}
+    ];
+  }
+ 
+  return {platforms, coins, enemies, flagX, levelWidth};
+}
+ 
+// ---------- Estado do jogo ----------
+let state = {
+  level: 1,
+  lives: 3,
+  coins: 0,
+  running: true,
+  paused: false
+};
+ 
+let camera = {x: 0};
+ 
+let player, world;
+ 
+function initLevel(levelNum, keepStats) {
+  world = buildLevel(levelNum);
+  player = {
+    x: 50, y: groundY - 40,
+    w: 32, h: 40,
+    vx: 0, vy: 0,
+    onGround: false,
+    facing: 1,
+    invincible: 0,
+    dead: false
+  };
+  camera.x = 0;
+  if (!keepStats) {
+    state.coins = 0;
+  }
+  state.level = levelNum;
+  document.getElementById('level').textContent = levelNum;
+  document.getElementById('coins').textContent = state.coins;
+  document.getElementById('lives').textContent = state.lives;
+}
+ 
+initLevel(1, false);
+ 
+// ---------- Loop principal ----------
+function rectsCollide(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+ 
+function update() {
+  if (!state.running || state.paused) return;
+ 
+  // Movimento horizontal
+  const speed = 4;
+  if (keys['ArrowLeft'] || keys['KeyA']) {
+    player.vx = -speed;
+    player.facing = -1;
+  } else if (keys['ArrowRight'] || keys['KeyD']) {
+    player.vx = speed;
+    player.facing = 1;
+  } else {
+    player.vx = 0;
+  }
+ 
+  // Pulo
+  if ((keys['Space'] || keys['KeyW'] || keys['ArrowUp']) && player.onGround) {
+    player.vy = -12.5;
+    player.onGround = false;
+  }
+ 
+  // Física
+  player.vy += GRAVITY;
+  if (player.vy > 15) player.vy = 15;
+ 
+  // Posição X com colisão
+  player.x += player.vx;
+  if (player.x < 0) player.x = 0;
+ 
+  for (const p of world.platforms) {
+    if (rectsCollide(player, p)) {
+      if (player.vx > 0) player.x = p.x - player.w;
+      else if (player.vx < 0) player.x = p.x + p.w;
+    }
+  }
+ 
+  // Posição Y com colisão
+  player.onGround = false;
+  player.y += player.vy;
+  for (const p of world.platforms) {
+    if (rectsCollide(player, p)) {
+      if (player.vy > 0) {
+        player.y = p.y - player.h;
+        player.vy = 0;
+        player.onGround = true;
+      } else if (player.vy < 0) {
+        player.y = p.y + p.h;
+        player.vy = 0;
+      }
+    }
+  }
+ 
+  // Caiu no buraco
+  if (player.y > canvas.height + 100) {
+    loseLife();
+    return;
+  }
+ 
+  // Moedas
+  for (let i = world.coins.length - 1; i >= 0; i--) {
+    const c = world.coins[i];
+    const coinBox = {x:c.x, y:c.y, w:20, h:20};
+    if (rectsCollide(player, coinBox)) {
+      world.coins.splice(i, 1);
+      state.coins++;
+      document.getElementById('coins').textContent = state.coins;
+    }
+  }
+ 
+  // Inimigos
+  if (player.invincible > 0) player.invincible--;
+ 
+  for (const e of world.enemies) {
+    if (e.dead) continue;
+    e.x += e.speed;
+    if (e.x > e.startX + e.range || e.x < e.startX - e.range) {
+      e.speed *= -1;
+    }
+    const eBox = {x:e.x, y:e.y, w:28, h:28};
+    if (rectsCollide(player, eBox)) {
+      // Pisou em cima?
+      if (player.vy > 0 && (player.y + player.h) - eBox.y < 18) {
+        e.dead = true;
+        player.vy = -8;
+        state.coins += 1;
+        document.getElementById('coins').textContent = state.coins;
+      } else if (player.invincible <= 0) {
+        loseLife();
+        return;
+      }
+    }
+  }
+ 
+  // Chegou na bandeira
+  if (player.x + player.w >= world.flagX) {
+    winLevel();
+    return;
+  }
+ 
+  // Câmera segue o jogador
+  camera.x = player.x - 300;
+  if (camera.x < 0) camera.x = 0;
+  if (camera.x > world.levelWidth - canvas.width) camera.x = world.levelWidth - canvas.width;
+}
+ 
+function loseLife() {
+  state.lives--;
+  document.getElementById('lives').textContent = state.lives;
+  if (state.lives <= 0) {
+    gameOver();
+  } else {
+    initLevel(state.level, true);
+  }
+}
+ 
+function gameOver() {
+  state.running = false;
+  showMessage("💀 GAME OVER 💀<br><span style='font-size:18px'>Moedas coletadas: " + state.coins + "</span>", "Jogar Novamente", () => {
+    state.lives = 3;
+    state.coins = 0;
+    initLevel(1, false);
+    state.running = true;
+    hideMessage();
+  });
+}
+ 
+function winLevel() {
+  state.running = false;
+  if (state.level === 1) {
+    showMessage("🎉 FASE 1 CONCLUÍDA! 🎉", "Próxima Fase", () => {
+      initLevel(2, true);
+      state.running = true;
+      hideMessage();
+    });
+  } else {
+    showMessage("🏆 VOCÊ VENCEU O JOGO! 🏆<br><span style='font-size:18px'>Moedas totais: " + state.coins + "</span>", "Jogar Novamente", () => {
+      state.lives = 3;
+      state.coins = 0;
+      initLevel(1, false);
+      state.running = true;
+      hideMessage();
+    });
+  }
+}
+ 
+let messageCallback = null;
+function showMessage(html, btnText, callback) {
+  document.getElementById('messageText').innerHTML = html;
+  document.getElementById('messageBtn').textContent = btnText;
+  document.getElementById('message').style.display = 'block';
+  messageCallback = callback;
+}
+function hideMessage() {
+  document.getElementById('message').style.display = 'none';
+}
+function handleMessageClick() {
+  if (messageCallback) messageCallback();
+}
+ 
+// ---------- Desenho ----------
+function drawCloud(x, y) {
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath();
+  ctx.arc(x, y, 18, 0, Math.PI*2);
+  ctx.arc(x+20, y-10, 22, 0, Math.PI*2);
+  ctx.arc(x+40, y, 18, 0, Math.PI*2);
+  ctx.fill();
+}
+ 
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+ 
+  // céu já é o background CSS; desenha nuvens
+  const cloudOffset = -(camera.x * 0.3) % 900;
+  for (let i = 0; i < 4; i++) {
+    drawCloud(cloudOffset + i * 300, 60 + (i%2)*30);
+    drawCloud(cloudOffset + i * 300 + 900, 60 + (i%2)*30);
+  }
+ 
+  ctx.save();
+  ctx.translate(-camera.x, 0);
+ 
+  // plataformas
+  for (const p of world.platforms) {
+    if (p.y === groundY) {
+      ctx.fillStyle = '#8b5a2b';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      ctx.fillStyle = '#3ea62f';
+      ctx.fillRect(p.x, p.y, p.w, 10);
+    } else {
+      ctx.fillStyle = '#c87137';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      ctx.fillStyle = '#3ea62f';
+      ctx.fillRect(p.x, p.y, p.w, 8);
+    }
+  }
+ 
+  // moedas
+  for (const c of world.coins) {
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.arc(c.x+10, c.y+10, 9, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#b8860b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+ 
+  // inimigos
+  for (const e of world.enemies) {
+    if (e.dead) continue;
+    ctx.fillStyle = '#8b4513';
+    ctx.beginPath();
+    ctx.ellipse(e.x+14, e.y+14, 14, 14, 0, 0, Math.PI*2);
+    ctx.fill();
+    // olhos
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(e.x+8, e.y+8, 3, 0, Math.PI*2);
+    ctx.arc(e.x+20, e.y+8, 3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(e.x+8, e.y+8, 1.5, 0, Math.PI*2);
+    ctx.arc(e.x+20, e.y+8, 1.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+ 
+  // bandeira
+  ctx.fillStyle = '#888';
+  ctx.fillRect(world.flagX + 10, groundY - 150, 6, 150);
+  ctx.fillStyle = '#ff3333';
+  ctx.beginPath();
+  ctx.moveTo(world.flagX + 16, groundY - 150);
+  ctx.lineTo(world.flagX + 55, groundY - 135);
+  ctx.lineTo(world.flagX + 16, groundY - 120);
+  ctx.fill();
+ 
+  // jogador
+  if (player.invincible <= 0 || Math.floor(player.invincible/4) % 2 === 0) {
+    ctx.fillStyle = '#e63946';
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+    // cabeça
+    ctx.fillStyle = '#ffd7a8';
+    ctx.fillRect(player.x+4, player.y-8, player.w-8, 16);
+    // chapéu
+    ctx.fillStyle = '#e63946';
+    ctx.fillRect(player.x+2, player.y-12, player.w-4, 8);
+    // olho
+    ctx.fillStyle = '#000';
+    const eyeX = player.facing === 1 ? player.x + player.w - 10 : player.x + 6;
+    ctx.fillRect(eyeX, player.y-2, 3, 3);
+  }
+ 
+  ctx.restore();
+}
+ 
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
